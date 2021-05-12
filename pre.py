@@ -5,6 +5,7 @@ from sklearn import datasets
 import seaborn as sns
 from sklearn.preprocessing import LabelEncoder
 from mpl_toolkits.mplot3d import Axes3D
+from sklearn.cluster import KMeans
 
 names = ["ID", "Flow.ID", "Source.IP", "Source.Port", "Destination.IP",
     "Destination.Port", "Protocol", "Timestamp", "Flow.Duration",
@@ -29,7 +30,7 @@ names_id = ["ID", "Cluster"]
 
 df_raw = pd.read_csv('raw_data_remove1st.csv', names=names, low_memory=False)
 df_cluster = pd.read_csv('cluster_remove.csv', names=names_id, low_memory=False)
-
+df_cluster.drop('ID', axis=1, inplace=True)
 print(df_raw.shape)
 print(df_cluster.shape)
 
@@ -52,7 +53,7 @@ print(df_raw.shape)
 
 data = df_raw.to_numpy()
 Y = data[:,82]
-X = data[:,0:81]
+X = data[:,0:5]
 Y = Y.reshape(-1, 1)
 
 from sklearn.decomposition import PCA
@@ -62,17 +63,8 @@ sScaler = StandardScaler()
 rescaleX = sScaler.fit_transform(X)
 pca = PCA(n_components=2)
 rescaleX = pca.fit_transform(rescaleX)
-rescaleX = np.append(rescaleX, Y, axis=1)
-principalDf = pd.DataFrame(data = rescaleX, columns = ['principal component 1', 'principal component 2', 'target'])
-print(principalDf.head())
-print(principalDf.target.value_counts())
-
+principalDf = pd.DataFrame(data = rescaleX, columns = ['principal component 1', 'principal component 2'])
 data = principalDf.to_numpy()
-
-names = ['one', 'two', 'three', 'four']
-
-
-
 
 plt.clf()
 plt.figure()
@@ -80,11 +72,55 @@ plt.figure()
 plt.title('KDD data set - Linear separability')
 plt.xlabel('pc1')
 plt.ylabel('pc2')
-for i in range(len(names)):
-    bucket = principalDf[principalDf['target'] == i]
-    bucket = bucket.iloc[:,[0,1]].values
-    plt.scatter(bucket[:, 0], bucket[:, 1], label=names[i]) 
-plt.legend(loc='upper left',
-           fontsize=8)
+#plt.scatter(principalDf.iloc[:,0], principalDf.iloc[:,1], s=50)
  
+#plt.show()
+
+
+kmeans = KMeans(n_clusters=4,random_state=0).fit(rescaleX)
+y_kmeans = kmeans.predict(rescaleX)
+plt.scatter(principalDf.iloc[:,0], principalDf.iloc[:,1], c=y_kmeans, s=50, cmap='viridis')
+
+
+centers = kmeans.cluster_centers_
+plt.scatter(centers[:, 0], centers[:, 1], c='black', s=200, alpha=0.5)
 plt.show()
+
+from sklearn.metrics.cluster import adjusted_mutual_info_score
+ans = df_cluster.to_numpy()
+ans = ans.flatten()
+kmeans_performance = adjusted_mutual_info_score ( ans,y_kmeans )
+print("kmeans_performance: ")
+print(kmeans_performance)
+print("")
+
+
+from sklearn.cluster import Birch
+brc = Birch(n_clusters=4)
+y_brc = brc.fit(rescaleX)
+y_brc_ans = y_brc.predict(rescaleX)
+
+birch_performance = adjusted_mutual_info_score ( ans,y_brc_ans )
+print("Birch_performance: ")
+print(birch_performance)
+print("")
+
+
+from sklearn.cluster import SpectralClustering
+
+spectralA = SpectralClustering(n_clusters=4, affinity='rbf',
+                           assign_labels='kmeans')
+y_spectralA = spectralA.fit_predict(rescaleX)
+performance2 = adjusted_mutual_info_score ( ans,y_spectralA )
+print("SpectralA_performance: ")
+print(performance2)
+print("")
+
+
+spectralA = SpectralClustering(n_clusters=4, affinity='rbf',
+                           assign_labels='discretize')
+y_spectralB = spectralA.fit_predict(rescaleX)
+performance3 = adjusted_mutual_info_score ( ans,y_spectralB )
+print("SpectralB_performance: ")
+print(performance3)
+print("")
