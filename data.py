@@ -57,8 +57,10 @@ df_feature['min_seg_size_forward'] = df_raw['min_seg_size_forward']
 print(df_raw.shape)
 
 data = df_feature.to_numpy()
-
+ansdata = df_cluster.to_numpy()
+Y = ansdata[:,0]
 X = data[:,0:9]
+Y = Y.reshape(-1, 1)
 
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
@@ -67,8 +69,10 @@ sScaler = StandardScaler()
 rescaleX = sScaler.fit_transform(X)
 pca = PCA(n_components=2)
 rescaleX = pca.fit_transform(rescaleX)
-principalDf = pd.DataFrame(data = rescaleX, columns = ['principal component 1', 'principal component 2'])
-data = principalDf.to_numpy()
+rescaleX = np.append(rescaleX, Y, axis=1)
+principalDf = pd.DataFrame(data = rescaleX, columns = ['principal component 1', 'principal component 2', 'target'])
+
+labels = ['one', 'two', 'three', 'four']
 
 plt.clf()
 plt.figure()
@@ -77,54 +81,15 @@ plt.title('KDD data set - Linear separability')
 plt.xlabel('pc1')
 plt.ylabel('pc2')
 
-kmeans = KMeans(n_clusters=4,random_state=0).fit(rescaleX)
-y_kmeans = kmeans.predict(rescaleX)
-#plt.scatter(principalDf.iloc[:,0], principalDf.iloc[:,1], c=y_kmeans, s=50, cmap='viridis')
+for i in range(len(labels)):
+    bucket = principalDf[principalDf['target'] == i]
+    bucket = bucket.iloc[:,[0,1]].values
+    plt.scatter(bucket[:, 0], bucket[:, 1], label=labels[i]) 
+plt.legend(loc='upper left',
+           fontsize=8)
+
+plt.show() 
 
 
-#centers = kmeans.cluster_centers_
-#plt.scatter(centers[:, 0], centers[:, 1], c='black', s=200, alpha=0.5)
 
 
-from sklearn.metrics.cluster import adjusted_mutual_info_score
-ans = df_cluster.to_numpy()
-ans = ans.flatten()
-kmeans_performance = adjusted_mutual_info_score ( ans,y_kmeans )
-print("kmeans_performance: ")
-print(kmeans_performance)
-print("")
-
-
-from sklearn.cluster import Birch
-brc = Birch(n_clusters=4)
-y_brc = brc.fit(rescaleX)
-y_brc_ans = y_brc.predict(rescaleX)
-
-birch_performance = adjusted_mutual_info_score ( ans,y_brc_ans )
-print("Birch_performance: ")
-print(birch_performance)
-print("")
-
-
-from sklearn.cluster import SpectralClustering
-
-'''
-spectralA = SpectralClustering(n_clusters=4, affinity='rbf',
-                           assign_labels='kmeans')
-y_spectralA = spectralA.fit_predict(rescaleX)
-
-performance2 = adjusted_mutual_info_score ( ans,y_spectralA )
-print("SpectralA_performance: ")
-print(performance2)
-print("")
-'''
-spectralA = SpectralClustering(n_clusters=4, affinity='rbf',
-                           assign_labels='discretize')
-y_spectralB = spectralA.fit_predict(rescaleX)
-performance3 = adjusted_mutual_info_score ( ans,y_spectralB )
-plt.scatter(principalDf.iloc[:,0], principalDf.iloc[:,1],
-    c=y_spectralB, s=50, cmap='viridis')
-plt.show()
-print("SpectralB_performance: ")
-print(performance3)
-print("")
